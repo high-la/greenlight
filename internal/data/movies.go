@@ -3,13 +3,13 @@ package data
 import "time"
 
 type Movie struct {
-	ID        int64
-	CreatedAt time.Time // Timestamp for when the movie is added to our database
-	Title     string
-	Year      int32    // Movie release year
-	Runtime   int32    // movie length in minutes
-	Geners    []string // slice of geners
-	Version   int32
+	ID        int64     `json:"id"`
+	CreatedAt time.Time `json:"created_at"` // Timestamp for when the movie is added to our database
+	Title     string    `json:"title"`
+	Year      int32     `json:"year"`    // Movie release year
+	Runtime   int32     `json:"runtime"` // movie length in minutes
+	Geners    []string  `json:"geners"`  // slice of geners
+	Version   int32     `json:"version"`
 	// The version number starts at 1 and will be incremented each
 	// time the movie information is updated
 }
