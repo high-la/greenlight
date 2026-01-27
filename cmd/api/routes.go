@@ -25,5 +25,7 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodGet, "/v1/movies/:id", app.showMovieHandler)
 
 	// Return the httprouter instance.
-	return router
+
+	// Wrap the router with the panic recovery middleware.
+	return app.recoverPanic(router)
 }
