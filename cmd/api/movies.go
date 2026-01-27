@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/High-la/greenlight/internal/data"
+	"github.com/High-la/greenlight/internal/validator"
 )
 
 // Add a createMovieHandler for the "POST /v1/moview" endpoint. For now we simply
@@ -29,6 +30,36 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 	err := app.readJSON(w, r, &input)
 	if err != nil {
 		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	// Initialize a new Validator instance.
+	v := validator.New()
+
+	// Use the Check() method to execute our validation checks. This will add the
+	// provided key and error message to the errors map if the check doesn't evaluate
+	// to true. For example, in the first line here we "check" that the title is not
+	// equal to the empty string". In the second, we "check the length of the title
+	// is less than or equal to 500 bytes" and so on.
+	v.Check(input.Title != "", "title", "must be provided")
+	v.Check(len(input.Title) <= 500, "title", "ust not be more than 500 bytes long")
+
+	v.Check(input.Year != 0, "year", "must be provided")
+	v.Check(input.Year >= 1888, "year", "must be greater than 1888")
+	v.Check(input.Year <= int32(time.Now().Year()), "year", "must not be in the future")
+
+	v.Check(input.Genres != nil, "genres", "must be provided")
+	v.Check(len(input.Genres) >= 1, "genres", "must contain at least 1 genres")
+	v.Check(len(input.Genres) <= 5, "genres", "must not contain more than 5 genres")
+	// Note that we're usinf the unique helper in the line below to check that all
+	// values in the input.Geners slice are unique.
+	v.Check(validator.Unique(input.Genres), "genres", "must not contain duplicate values")
+
+	// Use the Valid() method to see if any of the checks failed. If they did, then use
+	// the failedValidationResponse() helper to send a response to the client, passing
+	// in the v.Errors map.
+	if !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
 
