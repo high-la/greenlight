@@ -24,16 +24,23 @@ const version = "1.0.0"
 // Add a db struct field to hold the config settings for our database connection
 // pool. For now this only holds the DSN(Data source name), which we will read in
 // from the command line flag.
+
+// Add maxOpenConns, maxIdleConns and maxIdleTime fields to hold the configuration
+// settings for the connection pool.
 type config struct {
 	port int
 	env  string
 	db   struct {
-		dsn string
+		dsn          string
+		maxOpenConns int
+		maxIdleConns int
+		maxIdleTime  time.Duration
 	}
 }
 
 // Define application struct to hold the dependencies for HTTP handlers, helpers,
 // and middleware.
+
 type application struct {
 	config config
 	logger *slog.Logger
@@ -54,6 +61,13 @@ func main() {
 	// Use the value of the GREENLIGHT_DB_DSN environment var as the default value
 	// for our db-dsn command line flag.
 	flag.StringVar(&cfg.db.dsn, "db-dsn", os.Getenv("GREENLIGHT_DB_DSN"), "PostgreSQL DSN")
+
+	// Read the connection pool settings from command-line flags into the config struct.
+	// Notice that the default values we're using are the ones we discussed above?
+	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
+	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
+	flag.DurationVar(&cfg.db.maxIdleTime, "db-max-idle-time", 15*time.Minute, "PostgreSQL max connection idle time")
+
 	flag.Parse()
 
 	// Initialize a new structured logger which writes log entries to the standard out
@@ -110,6 +124,18 @@ func openDB(cfg config) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Set the maximum number of open (in-use + idle) connections in the pool. Note that
+	// passing a value less than or equal to 0 will mean there is no limit.
+	db.SetMaxOpenConns(cfg.db.maxOpenConns)
+
+	// Set the maximum number of idle connections in the pool. Again, passing a value
+	// less than or equal to 0 will mean there is no limit.
+	db.SetMaxIdleConns(cfg.db.maxIdleConns)
+
+	// Set the maximum idle timeout for connections in the pool. Passing a duration less
+	// than or equal to 0 will mean that connections are not closed due to their idle time.
+	db.SetConnMaxIdleTime(cfg.db.maxIdleTime)
 
 	// Create a context with a 5-second timeout deadline.
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
