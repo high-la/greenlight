@@ -46,8 +46,6 @@ type MovieModel struct {
 	DB *sql.DB
 }
 
-// Add a placeholder method for inserting a new record in the movies table.
-
 // The Insert() method accepts a pointer to a movie struct, which should contain
 // the data for the new record.
 func (m MovieModel) Insert(movie *Movie) error {
@@ -72,7 +70,6 @@ func (m MovieModel) Insert(movie *Movie) error {
 
 }
 
-// Add a placeholder method for fetching a specific record from the movies table.
 func (m MovieModel) Get(id int64) (*Movie, error) {
 
 	if id < 1 {
@@ -116,9 +113,27 @@ func (m MovieModel) Get(id int64) (*Movie, error) {
 	return &movie, nil
 }
 
-// Add a placeholder method for updating a specific record in the movies table.
 func (m MovieModel) Update(movie *Movie) error {
-	return nil
+
+	// .
+	query := `
+		UPDATE movies
+			SET title = $1, year = $2, runtime = $3, genres = $4, version = version + 1
+		WHERE id = $5
+		RETURNING version`
+
+	// Create an args slice containing the values for the placeholder parameters.
+	args := []any{
+		movie.Title,
+		movie.Year,
+		movie.Runtime,
+		pq.Array(movie.Genres),
+		movie.ID,
+	}
+
+	// .
+	return m.DB.QueryRow(query, args...).Scan(&movie.Version)
+
 }
 
 // Add a placeholder method for deleting a specific record from the movies table.
