@@ -100,7 +100,7 @@ func (m TokenModel) New(userID int64, ttl time.Duration, scope string) (*Token, 
 func (m TokenModel) Insert(token *Token) error {
 
 	query := `INSERT INTO tokens 
-				(hash, user_id, expiray, scope)
+				(hash, user_id, expiry, scope)
 			  VALUES 
 			  	($1, $2, $3, $4)`
 

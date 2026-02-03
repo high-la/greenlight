@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/High-la/greenlight/internal/data"
 	"github.com/High-la/greenlight/internal/validator"
@@ -70,6 +71,14 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// After the user record has been created in the database, generate a new activation
+	// token for the user
+	token, err := app.models.Tokens.New(user.ID, 3*24*time.Hour, data.ScopeActivation)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
 	// Use the background helper to execute an anonymous function that sends the welcome
 	// email.
 
@@ -77,7 +86,18 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 
 		// Call the Send() method on our Mailer, passing in the user's email address,
 		// name of the template file, and the User struct containing the new user's data.
-		err = app.mailer.Send(user.Email, "user_welcome.tmpl.html", user)
+
+		// As there are now multiple pieces of data that we want to pass to our email
+		// templates, we create a map to act as a 'holding structure' for the data. This
+		// contains the plaintext version of the activation token for the user, along
+		// with their ID.
+		data := map[string]any{
+			"activationToken": token.Plaintext,
+			"userID":          user.ID,
+		}
+
+		// Send the welcome email, passing in the map above as dynamic data
+		err = app.mailer.Send(user.Email, "user_welcome.tmpl.html", data)
 		if err != nil {
 			// Importantly, if there is an error sending the email then we use the
 			// app.logger.Error() helper to manage it, instead of the
