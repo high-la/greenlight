@@ -131,6 +131,15 @@ func (m UserModel) Update(user *User) error {
 	return nil
 }
 
+// Declare a new AnonymousUser variable
+
+var AnonymousUser = &User{}
+
+// Check if a user instance is AnonymousUser
+func (u *User) IsAnonymous() bool {
+	return u == AnonymousUser
+}
+
 // Notice how we are
 // using the json:"-" struct tag to prevent the Password and Version fields appearing in
 // any output when we encode it to JSON. Also notice that the Password field uses the
