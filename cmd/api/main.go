@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -64,12 +65,15 @@ type config struct {
 // Define application struct to hold the dependencies for HTTP handlers, helpers,
 // and middleware.
 
-// Add a models field to hold our new Models struct.
+// Include a sync.WaitGroup in the application struct. The zero-value for a
+// sync.WaitGroup type is a valid, useable, sync.WaitGroup with a 'counter' value of 0,
+// so we don't need to do anything else to initialize it before we can use it.
 type application struct {
 	config config
 	logger *slog.Logger
 	models data.Models
 	mailer mailer.Mailer
+	wg     sync.WaitGroup
 }
 
 func main() {
