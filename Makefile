@@ -8,28 +8,29 @@ endif
 
 export
 
+## help: print this help message
+help:
+	@echo 'Usage:'
+	@sed -n 's/^##//p' ${MAKEFILE_LIST} | column -t -s ':' | sed -e 's/^/ /'
+
 # Create the new confirm target
 confirm:
 	@echo -n 'Are you sure ? [y/N]' && read ans && [ $${ans:-N} = y ]
 
-# for namespaces in large files use / as separator
-# db/migrations/new not path its name it was "run" before
+## run/api: run the cmd/api application
 run/api:
 	go run ./cmd/api
 
-psql:
+## db/psql: connect to the database using psql
+db/psql:
 	psql ${GREENLIGHT_DB_DSN}
 
-# for namespaces in large files use / as separator
-# db/migrations/new not path its name it was "migration" before
+## db/migrations/new name=$1: create a new database migration
 db/migrations/new:
 	@echo 'Creating migration files for${name}...'
 	migrate create -seq -ext=.sql -dir=./migrations ${name}
 
-# for namespaces in large files use / as separator
-# db/migrations/new not path its name it was "up" before
-
-#Include it as prerequisite
+## db/migrations/up: apply all up database migrations
 db/migrations/up: confirm
 	@echo 'Running up migrations...'
 	migrate -path ./migrations -database ${GREENLIGHT_DB_DSN} up
