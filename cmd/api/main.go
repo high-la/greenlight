@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"expvar"
 	"flag"
-	"fmt"
 	"log/slog"
 	"os"
 	"runtime"
@@ -96,14 +95,17 @@ func main() {
 		env = "development"
 	}
 
-	if env != "production" {
+	var envFile string
 
-		envFileName := fmt.Sprintf(".env.%s", env)
-		fmt.Println(envFileName)
-		if err := godotenv.Load(envFileName); err != nil {
-			logger.Error("error loading env file", "file", envFileName)
-			os.Exit(1)
-		}
+	if env == "development" {
+		envFile = "env/.env.development"
+	} else {
+		envFile = "env/.env.production"
+	}
+
+	if err := godotenv.Load(envFile); err != nil {
+		logger.Error("error loading env file", "file", envFile)
+		os.Exit(1)
 	}
 
 	// 2. Declare config
