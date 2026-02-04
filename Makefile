@@ -87,9 +87,11 @@ audit:
 .PHONY: build/api
 build/api:
 	@echo 'Building cmd/api...'
-	go build -ldflags='-s' -o=./bin/api ./cmd/api
-
 # Note: The linker flag -ldflags='-s' strips out both symbol tables and DWARF
 # debugging information. If you want to only omit the DWARF debugging information,
 # you can use the linker flag -ldflags='-w' instead. If you want to only omit the symbol
 # table, you can use the flags -ldflags='-s -w=0'
+	go build -ldflags='-s' -o=./bin/api ./cmd/api
+
+# building for specific OS
+	GOOS=linux GOARCH=amd64 go build -ldflags='-s' -o=./bin/linux_amd64/api ./cmd/api
