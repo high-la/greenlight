@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -318,6 +319,64 @@ func (app *application) enableCORS(next http.Handler) http.Handler {
 	})
 }
 
+// The metricsResponseWriter type wraps an existing http.ResponseWriter and also
+// contains a field for recording the response status code, and a boolean flag to
+// indicate whether the response headers have already been written.
+
+type metricsResponseWriter struct {
+	wrapped       http.ResponseWriter
+	statusCode    int
+	headerWritten bool
+}
+
+// This function returns a new metricsResponseWriter instance which wraps a given
+// http.ResponseWriter and has a status code of 200 (which is the status
+// code that Go will send in a HTTP response by default).
+func newMetricsResponseWriter(w http.ResponseWriter) *metricsResponseWriter {
+
+	return &metricsResponseWriter{
+		wrapped:    w,
+		statusCode: http.StatusOK,
+	}
+}
+
+// The Header() method is a simple 'pass through' to the Header() method of the
+// wrapped http.ResponseWriter.
+func (mw *metricsResponseWriter) Header() http.Header {
+	return mw.wrapped.Header()
+}
+
+// Again, the WriteHeader() method does a 'pass through' to the WriteHeader()
+// method of the wrapped http.ResponseWriter. But after this returns,
+// we also record the response status code (if it hasn't already been recorded)
+// and set the headerWritten field to true to indicate that the HTTP response
+// headers have now been written.
+func (mw *metricsResponseWriter) WriteHeader(statusCode int) {
+
+	mw.wrapped.WriteHeader(statusCode)
+
+	if !mw.headerWritten {
+		mw.statusCode = statusCode
+		mw.headerWritten = true
+	}
+}
+
+// Likewise the Write() method does a 'pass through' to the Write() method of the
+// wrapped http.ResponseWriter. Calling this will automatically write any
+// response headers, so we set the headerWritten field to true.
+func (mw *metricsResponseWriter) Write(b []byte) (int, error) {
+
+	mw.headerWritten = true
+	return mw.wrapped.Write(b)
+}
+
+// We also need an Unwrap() method which returns the existing wrapped
+// http.ResponseWriter.
+func (mw *metricsResponseWriter) Unwrap() http.ResponseWriter {
+
+	return mw.wrapped
+}
+
 func (app *application) metrics(next http.Handler) http.Handler {
 
 	// Initialize the new expvar variables when the middleware chain is first built
@@ -326,6 +385,10 @@ func (app *application) metrics(next http.Handler) http.Handler {
 		totalRequestReceived            = expvar.NewInt("total_requests_received")
 		totalResponsesSent              = expvar.NewInt("total_responses_sent")
 		totalProcessingTimeMicroseconds = expvar.NewInt("total_processing_time_μs")
+
+		// Declare a new expvar map to hold the count of responses for each HTTP status
+		// code.
+		totalResponsesSentByStatus = expvar.NewMap("total_responses_sent_by_status")
 	)
 
 	// The following code will be run for every request...
@@ -337,12 +400,24 @@ func (app *application) metrics(next http.Handler) http.Handler {
 		// Use the Add() method to increment the number of request received by 1
 		totalRequestReceived.Add(1)
 
-		// Call the next handler in the chain
-		next.ServeHTTP(w, r)
+		// Create a new metricsResponseWriter, which wraps the original
+		// http.ResponseWriter value that the metrics middleware received.
+		mw := newMetricsResponseWriter(w)
+		// Call the next handler in the chain using the new metricsResponseWriter
+		// as the http.ResponseWriter value.
+		next.ServeHTTP(mw, r)
 
 		// On the way back up the middleware chain, increment the number of reponses
 		// sent by 1.
 		totalResponsesSent.Add(1)
+
+		// At this point, the response status code should be stored in the
+		// mw.statusCode field. Note that the expvar map is string-keyed, so we
+		// need to use the strconv.Itoa() function to convert the status code
+		// (which is an integer) to a string. Then we use the Add() method on
+		// our new totalResponsesSentByStatus map to increment the count for the
+		// given status code by 1.
+		totalResponsesSentByStatus.Add(strconv.Itoa(mw.statusCode), 1)
 
 		// Calculate the number of microseconds since we began to process the request,
 		// then increment the total processing time by this amount
